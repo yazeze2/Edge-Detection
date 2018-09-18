@@ -1,0 +1,137 @@
+%11/29/2017
+%HW5
+
+clear all;
+clc;
+
+Im= imread('checkerboard.jpg');
+I = Im(:,:,1);
+
+figure;
+imshow(I)
+title('Checkerboard.jpg');
+%Pad Original Image
+[rows, cols] = size(I);
+I_new = zeros(rows+4, cols+4);
+I_new(3:end-2,3:end-2) =I;
+
+%Create the to be Convolved Image
+I_x = zeros(size(I_new));
+I_y = zeros(size(I_new));
+%G_Ker_x = (1/8)*[-1 0 1;-2 0 2;-1 0 1]; %Flipped Kernel so that so that
+%the multiplication during convolution is easier
+%G_Ker_y = (1/8)*[1 2 1; 0 0 0;-1 -2 -1];
+
+G_x = (1/240)*[-5 -4 -0 4 5; -8 -10 -0 10 8;-10 -20 0 20 10;-8 -10 0 10 8;-5 -4 0 4 5];
+G_Ker_x = G_x(end:-1:1,end:-1:1);
+G_y = (1/240)*[-5 -8 -10 -8 -5;-4 -10 -20 -10 -4;0 0 0 0 0;4 10 20 10 4;5 8 10 8 5];
+G_Ker_y = G_y(end:-1:1,end:-1:1);
+% Convolve with Gaussian Derivative Kernel
+for i =3:rows+2
+    for j=3:cols+2
+        value =0;
+        val =0;
+        for g = -2:2
+            for k =-2:2
+                value = value+I_new(i+g,j+k)*G_Ker_x(g+3,k+3);
+                val = val+I_new(i+g,j+k)*G_Ker_y(g+3,k+3);
+            end
+        end
+        I_x(i,j)=value;
+        I_y(i,j)=val;
+    end
+end
+%Crop the images and remove the added border pixels
+I_x = I_x(3:end-2,3:end-2);
+I_y = I_y(3:end-2,3:end-2);
+
+figure;
+subplot(2,2,1);
+imshow(I_x)
+title('X Der');
+subplot(2,2,2)
+imshow(I_y);
+title('Y Der');
+subplot(2,2,[3 4]);
+imshow(I);
+title('Original Image');
+
+%Compute Ix^2, Iy^2 and Ix*Iy
+I_x2 = I_x.*I_x;
+I_y2 = I_y.*I_y;
+I_xy = I_x.*I_y;
+[rows, cols]= size(I_x2);
+
+%Larger Gaussian Filter
+W =(1/273)*[1 4 7 4 1;4 16 26 16 4;7 26 41 26 7;4 16 26 16 4;1 4 7 4 1];
+W = W(end:-1:1,end:-1:1);
+
+%Convolve with the gaussian filter
+I_nx = zeros(rows+4, cols+4);
+I_ny = zeros(rows+4, cols+4);
+I_nxy = zeros(rows+4, cols+4);
+I_nx(3:end-2,3:end-2) =I_x2;
+I_ny(3:end-2,3:end-2) =I_y2;
+I_nxy(3:end-2,3:end-2) =I_xy;
+I_xx = zeros(size(I_nx));
+I_yy = zeros(size(I_ny));
+I_xy2 = zeros(size(I_nxy));
+for i = 3:rows+2
+    for j=3:cols+2
+        value =0;
+        val =0;
+        v=0;
+        for g = -2:2
+            for k =-2:2
+                value = value+I_nx(i+g,j+k)*W(g+3,k+3);
+                val = val+I_ny(i+g,j+k)*W(g+3,k+3);
+                v = v+I_nxy(i+g,j+k)*W(g+3,k+3);
+            end
+        end
+        I_xx(i,j)=value;
+        I_yy(i,j)=val;
+        I_xy2(i,j)=v;
+    end
+end
+
+%Crop the image and remove the added border pixels
+I_xx = I_xx(3:end-2,3:end-2);
+I_yy = I_yy(3:end-2,3:end-2);
+I_xy2 = I_xy2(3:end-2,3:end-2);
+
+% Calculate the Harris matrix A at each pixel
+[rows, cols] = size(I_xx);
+Threshold = 10000;
+gamma = 0.06;
+Feat =[];
+r=[];
+
+for i=1:rows
+   for j=1:cols       
+       A= [I_xx(i,j) I_xy2(i,j);I_xy2(i,j) I_yy(i,j)];       
+       %Compute the response of the detector at each pixel
+       R = det(A) - gamma * (trace(A) ^ 2);
+       r(i,j) = R;
+       %Threshold on value of R
+       if (R > Threshold) 
+          
+          pt = [i;j];
+          Feat = [Feat,pt];
+       end
+   end
+end
+figure;
+imshow(I);
+hold on;
+plot(Feat(2,:), Feat(1,:),'r+','MarkerSize',6);
+title('Selected Features');
+
+%Adaptive Non_maximal Supression
+Dialted = ordfilt2(r,24,ones(5,5));
+feat = (r==Dialted)&(r>Threshold);	
+[Ro,Co] = find(feat);
+figure;
+imshow(I);
+hold on;
+plot(Co, Ro,'r+','MarkerSize',6);
+title('ANMS Selected Featues');
