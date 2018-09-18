@@ -1,5 +1,5 @@
 # Edge-Detection
-Checkboard Edge Detection (Feature Detection) using Haar Wavelets
+Checkboard Rotational Invariant Edge Detection (Feature Detection) using Haar Wavelets
 
 ![image](https://user-images.githubusercontent.com/32316270/45660813-63768900-bac0-11e8-800f-babeaa508eb6.png)
 
